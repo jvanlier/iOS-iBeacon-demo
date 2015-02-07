@@ -20,10 +20,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
             -> Bool {
         //let uuidString = "EBEFD083-70A2-47C8-9837-E7B5634DF524" // iBeaconModules.us
         let uuidString = "74278bda-b644-4520-8f0c-720eaf059935" // Glimworm
-        let beaconIdentifier = "bla"
+        let beaconIdentifier = "identifier" // What's this for exactly?
         let beaconUUID = NSUUID(UUIDString: uuidString)
-        let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, identifier: beaconIdentifier)
-        
+        let minor = CLBeaconMinorValue(10)
+        let major = CLBeaconMajorValue(1337)
+        let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, minor: minor,
+            identifier: beaconIdentifier)
+
         // Init location manager and tell it to start listening for beacons:
         locationManager = CLLocationManager()
         if(locationManager!.respondsToSelector("requestAlwaysAuthorization")) {
@@ -107,7 +110,7 @@ extension AppDelegate: CLLocationManagerDelegate {
             case CLProximity.Near:
                 message = "You are nearby the Big Data lab"
             case CLProximity.Immediate:
-                message = "You are in the immediate proximity of the Big Data lab"
+                message = "Welcome to the Big Data lab!"
             case CLProximity.Unknown:
                 return
             }

@@ -20,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
             -> Bool {
         //let uuidString = "EBEFD083-70A2-47C8-9837-E7B5634DF524" // iBeaconModules.us
         let uuidString = "74278bda-b644-4520-8f0c-720eaf059935" // Glimworm
-        let beaconIdentifier = "JORIBEACON"
+        let beaconIdentifier = "bla"
         let beaconUUID = NSUUID(UUIDString: uuidString)
         let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, identifier: beaconIdentifier)
         
@@ -118,4 +118,25 @@ extension AppDelegate: CLLocationManagerDelegate {
         NSLog("%@", message)
         sendLocalNotificationWithMessage(message)
     }
+
+    func locationManager(manager: CLLocationManager!,
+            didEnterRegion region: CLRegion!) {
+        var message = "You entered the Big Data lab region."
+        manager.startRangingBeaconsInRegion(region as CLBeaconRegion)
+        manager.startUpdatingLocation()
+
+        NSLog(message)
+        sendLocalNotificationWithMessage(message)
+    }
+
+    func locationManager(manager: CLLocationManager!,
+            didExitRegion region: CLRegion!) {
+        var message = "You exited the Big Data lab region."
+        manager.stopRangingBeaconsInRegion(region as CLBeaconRegion)
+        manager.stopUpdatingLocation()
+
+        NSLog(message)
+        sendLocalNotificationWithMessage(message)
+    }
 }
+

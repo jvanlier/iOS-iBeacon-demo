@@ -10,5 +10,5 @@ It can be used to find the Big Data lab (where I work) if you're nearby.
 ![GitHub Logo](ranging.PNG)
 
 That's all it does right now... I might extend it with a webservice so that we can track where people are with a couple of beacons (e.g. in the lab, room of SK/EvdB, toilet...).
-
+We can then also make the notifications context-sensitive (e.g. we could create a notification that indicates who's in the lab right now)
 

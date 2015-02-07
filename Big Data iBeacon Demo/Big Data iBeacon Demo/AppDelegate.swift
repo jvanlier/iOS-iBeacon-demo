@@ -12,35 +12,19 @@ import CoreLocation
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate {
 
+    let uuidString = "74278bda-b644-4520-8f0c-720eaf059935" // Glimworm's UUID
+    let majorInt = 1337
+
     var window: UIWindow?
     var locationManager: CLLocationManager?
     var lastProximity: CLProximity?
-    var shouldSendNotificationOnNextNearOrImmediate = true
+    var shouldSendNotificationOnNextOpportunity = true
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?)
             -> Bool {
-        //let uuidString = "EBEFD083-70A2-47C8-9837-E7B5634DF524" // iBeaconModules.us
-        let uuidString = "74278bda-b644-4520-8f0c-720eaf059935" // Glimworm
-        let beaconIdentifier = "identifier" // What's this for exactly?
-        let beaconUUID = NSUUID(UUIDString: uuidString)
-        //let minor = CLBeaconMinorValue(10)
-        let major = CLBeaconMajorValue(1337)
-        //let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, minor: minor,
-        //    identifier: beaconIdentifier)
-        let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, identifier: beaconIdentifier)
+        var beaconRegion = self.getBeaconRegion()
+        self.initLocationManager(beaconRegion)
 
-        // Init location manager and tell it to start listening for beacons:
-        locationManager = CLLocationManager()
-        if(locationManager!.respondsToSelector("requestAlwaysAuthorization")) {
-            locationManager!.requestAlwaysAuthorization()
-        }
-        locationManager!.delegate = self
-        locationManager!.pausesLocationUpdatesAutomatically = false
-        
-        locationManager!.startMonitoringForRegion(beaconRegion)
-        locationManager!.startRangingBeaconsInRegion(beaconRegion)
-        locationManager!.startUpdatingLocation()
-        
         // Request permission to send notifications (new iOS 8 feature):
         if(application.respondsToSelector("registerUserNotificationSettings:")) {
             application.registerUserNotificationSettings(
@@ -50,8 +34,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
                 )
             )
         }
-        
         return true
+    }
+
+    func getBeaconRegion() -> CLBeaconRegion {
+        // Used to differentiate regions within one application. We only have one, so it really doesn't matter what
+        // we set here right now.
+        let beaconIdentifier = "identifier"
+        let beaconUUID = NSUUID(UUIDString: uuidString)
+        let major = CLBeaconMajorValue(self.majorInt)
+        // Note: the minor can also be set similarily and passed to the CLBeaconRegion constructor
+        let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, identifier: beaconIdentifier)
+
+        return beaconRegion
+    }
+
+    // Init location manager and tell it to start listening for beacons
+    func initLocationManager(beaconRegion: CLBeaconRegion) {
+        self.locationManager = CLLocationManager()
+        if (self.locationManager!.respondsToSelector("requestAlwaysAuthorization")) {
+            self.locationManager!.requestAlwaysAuthorization()
+        }
+        self.locationManager!.delegate = self
+        self.locationManager!.pausesLocationUpdatesAutomatically = false
+
+        self.locationManager!.startMonitoringForRegion(beaconRegion)
+        self.locationManager!.startRangingBeaconsInRegion(beaconRegion)
+        self.locationManager!.startUpdatingLocation()
     }
 
     func applicationWillResignActive(application: UIApplication) {
@@ -85,7 +94,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
     }
 }
 
-
 extension AppDelegate: CLLocationManagerDelegate {
     func sendLocalNotificationWithMessage(message: String!) {
         let notification:UILocalNotification = UILocalNotification()
@@ -95,26 +103,25 @@ extension AppDelegate: CLLocationManagerDelegate {
     
     func locationManager(manager: CLLocationManager!, didRangeBeacons beacons: [AnyObject]!,
             inRegion region: CLBeaconRegion!) {
-        NSLog("didRangeBeacons");
         var message = ""
         var sendableRange = false
+        NSLog("didRangeBeacons");
 
-        // Link to view:
-        let viewController = window!.rootViewController as ViewController
-        viewController.beacons = beacons as? [CLBeacon]
-        viewController.tableView?.reloadData()
+        self.updateTableView(beacons)
 
         if (beacons.count > 0) {
             let nearestBeacon:CLBeacon = beacons[0] as CLBeacon
 
-            // Ensure that we only update if the beacon is nearby:
+            // Ensure that we only update the message if the proximity since the last known value has changed and 
+            // isn't unknown:
             if (nearestBeacon.proximity == lastProximity || nearestBeacon.proximity == CLProximity.Unknown) {
                     return;
             }
+
             switch nearestBeacon.proximity {
             case CLProximity.Far:
                 message = "The Big Data lab is kind of far away..."
-                shouldSendNotificationOnNextNearOrImmediate = true
+                shouldSendNotificationOnNextOpportunity = true
             case CLProximity.Near:
                 message = "You are nearby the Big Data lab"
                 sendableRange = true
@@ -123,7 +130,7 @@ extension AppDelegate: CLLocationManagerDelegate {
                 sendableRange = true
                 if lastProximity == CLProximity.Near {
                     // Ensure that we also send a message if we just came very close while being only near before.
-                    shouldSendNotificationOnNextNearOrImmediate = true
+                    shouldSendNotificationOnNextOpportunity = true
                 }
             case CLProximity.Unknown:
                 return
@@ -131,13 +138,13 @@ extension AppDelegate: CLLocationManagerDelegate {
             lastProximity = nearestBeacon.proximity;
         } else {
             message = "You aren't near the Big Data lab..."
-            shouldSendNotificationOnNextNearOrImmediate = true
+            shouldSendNotificationOnNextOpportunity = true
         }
 
         NSLog(message)
 
-        if shouldSendNotificationOnNextNearOrImmediate && sendableRange {
-            shouldSendNotificationOnNextNearOrImmediate = false
+        if shouldSendNotificationOnNextOpportunity && sendableRange {
+            shouldSendNotificationOnNextOpportunity = false
             sendLocalNotificationWithMessage(message)
         }
 
@@ -145,10 +152,9 @@ extension AppDelegate: CLLocationManagerDelegate {
         self.updateViewLabel(message)
     }
 
-    // This function is called when first entering the region.
-    // It doesn't really add value for the demo.
-    // It also hardly seems reliable... sometimes continually toggling
-    // between in/out the region when its only 15m away.
+    // This function is called when first entering the region. It doesn't really add value for the demo.
+    // It also hardly seems reliable... sometimes repeatedly toggling between in/out the region when its only 15m away.
+    // Therefore, notifications are disabled right now.
     func locationManager(manager: CLLocationManager!,
             didEnterRegion region: CLRegion!) {
         var message = "You entered the Big Data lab region."
@@ -170,6 +176,13 @@ extension AppDelegate: CLLocationManagerDelegate {
         //sendLocalNotificationWithMessage(message)
     }
 
+    // Update table in view:
+    func updateTableView(beacons: AnyObject) {
+        let viewController = window!.rootViewController as ViewController
+        viewController.beacons = beacons as? [CLBeacon]
+        viewController.tableView?.reloadData()
+    }
+    
     // Update the top label in the view:
     func updateViewLabel(message: String) {
         let viewController = window!.rootViewController as ViewController

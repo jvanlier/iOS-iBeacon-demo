@@ -1,14 +1,18 @@
 //
 //  ViewController.swift
-//  Big Data iBeacon Demo
+//  iBeaconTemplateSwift
 //
-//  Created by Jori van Lier on 07-02-15.
-//  Copyright (c) 2015 dna. All rights reserved.
+//  Created by James Nick Sears on 7/1/14.
+//  Copyright (c) 2014 iBeaconModules.us. All rights reserved.
 //
 
 import UIKit
+import CoreLocation
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+    @IBOutlet weak var topLabel: UILabel!
+    @IBOutlet var tableView: UITableView?
+    var beacons: [CLBeacon]?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -19,7 +23,58 @@ class ViewController: UIViewController {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-
-
 }
 
+extension ViewController: UITableViewDataSource {
+    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if(beacons != nil) {
+            return beacons!.count
+        } else {
+            return 0
+        }
+    }
+
+    func tableView(tableView: UITableView,
+        cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+        var cell:UITableViewCell? =
+        tableView.dequeueReusableCellWithIdentifier("MyIdentifier") as? UITableViewCell
+
+        if (cell == nil) {
+            cell = UITableViewCell(style: UITableViewCellStyle.Subtitle, reuseIdentifier: "MyIdentifier")
+            cell!.selectionStyle = UITableViewCellSelectionStyle.None
+        }
+
+        let beacon:CLBeacon = beacons![indexPath.row]
+        var proximityLabel:String! = ""
+
+        switch beacon.proximity {
+        case CLProximity.Far:
+            proximityLabel = "Far"
+        case CLProximity.Near:
+            proximityLabel = "Near"
+        case CLProximity.Immediate:
+            proximityLabel = "Immediate"
+        case CLProximity.Unknown:
+            proximityLabel = "Unknown"
+        }
+
+        cell!.textLabel!.text = proximityLabel
+
+        let minor = beacon.minor
+        let rssi = beacon.rssi
+        let uuid = beacon.proximityUUID.UUIDString
+        let accuracy  = round(100 * beacon.accuracy) / 100
+
+        let detailLabel:String = "Major: \(beacon.major.integerValue), " +
+            "Minor: \(minor), " +
+            "RSSI: \(rssi), " +
+            "Accuracy: \(accuracy), "
+        cell!.detailTextLabel!.text = detailLabel
+
+        return cell!
+    }
+}
+
+extension ViewController: UITableViewDelegate {
+
+}

@@ -15,6 +15,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
     var window: UIWindow?
     var locationManager: CLLocationManager?
     var lastProximity: CLProximity?
+    var shouldSendNotificationOnNextNearOrImmediate = true
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?)
             -> Bool {
@@ -22,10 +23,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
         let uuidString = "74278bda-b644-4520-8f0c-720eaf059935" // Glimworm
         let beaconIdentifier = "identifier" // What's this for exactly?
         let beaconUUID = NSUUID(UUIDString: uuidString)
-        let minor = CLBeaconMinorValue(10)
+        //let minor = CLBeaconMinorValue(10)
         let major = CLBeaconMajorValue(1337)
-        let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, minor: minor,
-            identifier: beaconIdentifier)
+        //let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, minor: minor,
+        //    identifier: beaconIdentifier)
+        let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, identifier: beaconIdentifier)
 
         // Init location manager and tell it to start listening for beacons:
         locationManager = CLLocationManager()
@@ -95,33 +97,58 @@ extension AppDelegate: CLLocationManagerDelegate {
             inRegion region: CLBeaconRegion!) {
         NSLog("didRangeBeacons");
         var message = ""
+        var sendableRange = false
+
+        // Link to view:
+        let viewController = window!.rootViewController as ViewController
+        viewController.beacons = beacons as? [CLBeacon]
+        viewController.tableView?.reloadData()
 
         if (beacons.count > 0) {
             let nearestBeacon:CLBeacon = beacons[0] as CLBeacon
 
-            // Ensure that we only send a message if the beacon is nearby:
+            // Ensure that we only update if the beacon is nearby:
             if (nearestBeacon.proximity == lastProximity || nearestBeacon.proximity == CLProximity.Unknown) {
                     return;
             }
-            lastProximity = nearestBeacon.proximity;
             switch nearestBeacon.proximity {
             case CLProximity.Far:
                 message = "The Big Data lab is kind of far away..."
+                shouldSendNotificationOnNextNearOrImmediate = true
             case CLProximity.Near:
                 message = "You are nearby the Big Data lab"
+                sendableRange = true
             case CLProximity.Immediate:
                 message = "Welcome to the Big Data lab!"
+                sendableRange = true
+                if lastProximity == CLProximity.Near {
+                    // Ensure that we also send a message if we just came very close while being only near before.
+                    shouldSendNotificationOnNextNearOrImmediate = true
+                }
             case CLProximity.Unknown:
                 return
             }
+            lastProximity = nearestBeacon.proximity;
         } else {
             message = "You aren't near the Big Data lab..."
+            shouldSendNotificationOnNextNearOrImmediate = true
         }
-        
-        NSLog("%@", message)
-        sendLocalNotificationWithMessage(message)
+
+        NSLog(message)
+
+        if shouldSendNotificationOnNextNearOrImmediate && sendableRange {
+            shouldSendNotificationOnNextNearOrImmediate = false
+            sendLocalNotificationWithMessage(message)
+        }
+
+        // Update the top label in the view:
+        self.updateViewLabel(message)
     }
 
+    // This function is called when first entering the region.
+    // It doesn't really add value for the demo.
+    // It also hardly seems reliable... sometimes continually toggling
+    // between in/out the region when its only 15m away.
     func locationManager(manager: CLLocationManager!,
             didEnterRegion region: CLRegion!) {
         var message = "You entered the Big Data lab region."
@@ -129,9 +156,10 @@ extension AppDelegate: CLLocationManagerDelegate {
         manager.startUpdatingLocation()
 
         NSLog(message)
-        sendLocalNotificationWithMessage(message)
+        //sendLocalNotificationWithMessage(message)
     }
 
+    // This function is called when you've left the region.
     func locationManager(manager: CLLocationManager!,
             didExitRegion region: CLRegion!) {
         var message = "You exited the Big Data lab region."
@@ -139,7 +167,13 @@ extension AppDelegate: CLLocationManagerDelegate {
         manager.stopUpdatingLocation()
 
         NSLog(message)
-        sendLocalNotificationWithMessage(message)
+        //sendLocalNotificationWithMessage(message)
+    }
+
+    // Update the top label in the view:
+    func updateViewLabel(message: String) {
+        let viewController = window!.rootViewController as ViewController
+        viewController.topLabel.text = message
     }
 }
 

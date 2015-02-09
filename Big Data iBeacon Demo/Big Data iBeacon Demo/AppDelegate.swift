@@ -18,7 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
     var window: UIWindow?
     var locationManager: CLLocationManager?
     var lastProximity: CLProximity?
-    var shouldSendNotificationOnNextOpportunity = true
+    var notificationAlreadySentWhileInRange = false
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?)
             -> Bool {
@@ -45,6 +45,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
         let major = CLBeaconMajorValue(self.majorInt)
         // Note: the minor can also be set similarily and passed to the CLBeaconRegion constructor
         let beaconRegion = CLBeaconRegion(proximityUUID: beaconUUID, major: major, identifier: beaconIdentifier)
+        beaconRegion.notifyEntryStateOnDisplay = true
 
         return beaconRegion
     }
@@ -94,6 +95,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, CLLocationManagerDelegate
     }
 }
 
+
 extension AppDelegate: CLLocationManagerDelegate {
     func sendLocalNotificationWithMessage(message: String!) {
         let notification:UILocalNotification = UILocalNotification()
@@ -115,37 +117,32 @@ extension AppDelegate: CLLocationManagerDelegate {
             // Ensure that we only update the message if the proximity since the last known value has changed and 
             // isn't unknown:
             if (nearestBeacon.proximity == lastProximity || nearestBeacon.proximity == CLProximity.Unknown) {
-                    return;
+                return;
             }
+            lastProximity = nearestBeacon.proximity;
 
             switch nearestBeacon.proximity {
             case CLProximity.Far:
                 message = "The Big Data lab is kind of far away..."
-                shouldSendNotificationOnNextOpportunity = true
             case CLProximity.Near:
-                message = "You are nearby the Big Data lab"
+                message = "Welcome to the Big Data lab! (Prox: Near)"
                 sendableRange = true
             case CLProximity.Immediate:
-                message = "Welcome to the Big Data lab!"
+                message = "Welcome to the Big Data lab! (Prox: Immediate)"
                 sendableRange = true
-                if lastProximity == CLProximity.Near {
-                    // Ensure that we also send a message if we just came very close while being only near before.
-                    shouldSendNotificationOnNextOpportunity = true
-                }
-            case CLProximity.Unknown:
+             case CLProximity.Unknown:
                 return
             }
-            lastProximity = nearestBeacon.proximity;
         } else {
             message = "You aren't near the Big Data lab..."
-            shouldSendNotificationOnNextOpportunity = true
+            notificationAlreadySentWhileInRange = false
         }
 
         NSLog(message)
 
-        if shouldSendNotificationOnNextOpportunity && sendableRange {
-            shouldSendNotificationOnNextOpportunity = false
+        if !notificationAlreadySentWhileInRange && sendableRange {
             sendLocalNotificationWithMessage(message)
+            notificationAlreadySentWhileInRange = true
         }
 
         // Update the top label in the view:
